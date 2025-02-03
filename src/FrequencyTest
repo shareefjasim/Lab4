@@ -1,0 +1,247 @@
+// #include <Arduino.h>
+// #if defined(ESP32) || defined(ARDUINO_RASPBERRY_PI_PICO_W)
+// #include <WiFi.h>
+// #elif defined(ESP8266)
+// #include <ESP8266WiFi.h>
+// #endif
+
+// #include <FirebaseClient.h>
+// #include <WiFiClientSecure.h>
+
+// #define WIFI_SSID "UW MPSK"
+// #define WIFI_PASSWORD "K7LMs,Y_#d"
+
+// // IMPORTANT: This is likely a Web API key, not a true Database Secret.
+// // Replace with your actual "Database Secret" if needed.
+// #define DATABASE_SECRET "HQInHv2FIzmuqQKNIlwkgcAgCB3auDxY44QHLlIX"
+
+// // Your Realtime Database URL
+// #define DATABASE_URL "https://lab4-shareef-default-rtdb.firebaseio.com/"
+
+// // Each stage is 12 seconds
+// #define STAGE_INTERVAL 12000
+// #define MAX_WIFI_RETRIES 5
+
+// // We’ll have five sub-stages for the final step, each 12 seconds long,
+// // with different upload intervals (in milliseconds):
+// static const unsigned long uploadIntervals[5] = {
+//     500,   // 2 Hz
+//     1000,  // 1 Hz
+//     2000,  // 0.5 Hz
+//     3000,  // 0.333 Hz
+//     4000   // 0.25 Hz
+// };
+
+// WiFiClientSecure ssl;
+// DefaultNetwork network;
+// AsyncClientClass client(ssl, getNetwork(network));
+// FirebaseApp app;
+// RealtimeDatabase Database;
+// AsyncResult result;
+// LegacyToken dbSecret(DATABASE_SECRET);
+
+// // HC-SR04 Pins
+// // (If you're on ESP32, typically use GPIO numbers, e.g. 4,5, etc.)
+// #if defined(ESP8266)
+//   const int trigPin = D4;
+//   const int echoPin = D5;
+// #else
+//   // Adjust to your board’s actual pins
+//   const int trigPin = 4;
+//   const int echoPin = 5;
+// #endif
+
+// // Speed of sound in cm/us
+// const float soundSpeed = 0.034;
+
+// // Forward declarations
+// float measureDistance();
+// void connectToWiFi();
+// void initFirebase();
+// void sendDataToFirebase(float distance, unsigned long &prevMillis, unsigned long interval);
+
+// void printError(int code, const String &msg)
+// {
+//   Firebase.printf("Error, msg: %s, code: %d\n", msg.c_str(), code);
+// }
+
+// void setup()
+// {
+//   Serial.begin(115200);
+//   delay(500);
+
+//   pinMode(trigPin, OUTPUT);
+//   pinMode(echoPin, INPUT);
+
+//   // ---------------------------------------------------------
+//   // Stage 1: 12 seconds doing nothing
+//   // ---------------------------------------------------------
+//   Serial.println("Stage 1: Doing nothing for 12 seconds...");
+//   unsigned long startTime = millis();
+//   while (millis() - startTime < STAGE_INTERVAL)
+//   {
+//     delay(100);
+//   }
+
+//   // ---------------------------------------------------------
+//   // Stage 2: 12 seconds measuring distance (no WiFi)
+//   // ---------------------------------------------------------
+//   Serial.println("Stage 2: Measuring distance (no WiFi) for 12 seconds...");
+//   startTime = millis();
+//   while (millis() - startTime < STAGE_INTERVAL)
+//   {
+//     measureDistance();
+//     delay(100);
+//   }
+
+//   // ---------------------------------------------------------
+//   // Stage 3: 12 seconds measuring distance with WiFi
+//   // ---------------------------------------------------------
+//   Serial.println("Stage 3: Connecting WiFi + measuring distance for 12 seconds...");
+//   connectToWiFi();
+
+//   startTime = millis();
+//   while (millis() - startTime < STAGE_INTERVAL)
+//   {
+//     measureDistance();
+//     delay(100);
+//   }
+
+//   // ---------------------------------------------------------
+//   // Stage 4: Turn on Firebase, then do 5 sub-stages—one for each rate
+//   // ---------------------------------------------------------
+//   Serial.println("Stage 4: Init Firebase, then measure & push data at 5 rates...");
+//   initFirebase();
+
+//   for (int i = 0; i < 5; i++)
+//   {
+//     unsigned long subStartTime = millis();
+//     Serial.printf("  Sub-stage %d: Sending data every %lu ms for 12 seconds\n", i+1, uploadIntervals[i]);
+
+//     // We'll keep track of when we last uploaded:
+//     unsigned long lastUploadMillis = 0;
+
+//     // Do this sub-stage for 12 seconds
+//     while (millis() - subStartTime < STAGE_INTERVAL)
+//     {
+//       float currentDistance = measureDistance();
+//       sendDataToFirebase(currentDistance, lastUploadMillis, uploadIntervals[i]);
+//       delay(20); // small delay to avoid flooding the sensor calls
+//     }
+//   }
+
+//   // ---------------------------------------------------------
+//   // Stage 5: Go to deep sleep for 12 seconds
+//   // ---------------------------------------------------------
+//   Serial.println("Stage 5: Going to deep sleep for 12 seconds...");
+  
+//   // For ESP32 or Seeed XIAO ESP32C3:
+//   // Convert ms to microseconds:
+//   esp_sleep_enable_timer_wakeup(STAGE_INTERVAL * 1000ULL);
+//   WiFi.disconnect();
+//   esp_deep_sleep_start();
+// }
+
+// void loop()
+// {
+//   // Not used in this example
+// }
+
+// // ---------------------------------------------------------------------
+// // Measure distance using HC-SR04
+// // ---------------------------------------------------------------------
+// float measureDistance()
+// {
+//   digitalWrite(trigPin, LOW);
+//   delayMicroseconds(2);
+//   digitalWrite(trigPin, HIGH);
+//   delayMicroseconds(10);
+//   digitalWrite(trigPin, LOW);
+
+//   long duration = pulseIn(echoPin, HIGH);
+//   float distance = duration * soundSpeed / 2.0;
+
+//   Serial.print("Distance: ");
+//   Serial.print(distance);
+//   Serial.println(" cm");
+//   return distance;
+// }
+
+// // ---------------------------------------------------------------------
+// // Connect to WiFi
+// // ---------------------------------------------------------------------
+// void connectToWiFi()
+// {
+//   Serial.print("MAC Address: ");
+//   Serial.println(WiFi.macAddress());
+
+//   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+//   Serial.print("Connecting to WiFi");
+//   int wifiCnt = 0;
+//   while (WiFi.status() != WL_CONNECTED)
+//   {
+//     delay(500);
+//     Serial.print(".");
+//     wifiCnt++;
+//     if (wifiCnt > MAX_WIFI_RETRIES)
+//     {
+//       Serial.println("WiFi connection failed");
+//       ESP.restart();
+//     }
+//   }
+//   Serial.println();
+//   Serial.println("Connected to WiFi");
+//   Serial.print("IP Address: ");
+//   Serial.println(WiFi.localIP());
+// }
+
+// // ---------------------------------------------------------------------
+// // Initialize Firebase
+// // ---------------------------------------------------------------------
+// void initFirebase()
+// {
+//   Firebase.printf("Firebase Client v%s\n", FIREBASE_CLIENT_VERSION);
+
+//   ssl.setInsecure();
+// #if defined(ESP8266)
+//   ssl.setBufferSizes(1024, 1024);
+// #endif
+
+//   // Initialize the authentication handler.
+//   Serial.println("Initializing the app...");
+//   initializeApp(client, app, getAuth(dbSecret));
+
+//   // Bind authentication handler with Database class object.
+//   app.getApp<RealtimeDatabase>(Database);
+
+//   // Set your database URL
+//   Database.url(DATABASE_URL);
+
+//   // In sync functions, set the operating result for the client
+//   client.setAsyncResult(result);
+// }
+
+// // ---------------------------------------------------------------------
+// // Send the distance data to Firebase at the given interval
+// // ---------------------------------------------------------------------
+// void sendDataToFirebase(float distance, unsigned long &prevMillis, unsigned long interval)
+// {
+//   // If enough time has passed, push new data
+//   if (millis() - prevMillis >= interval)
+//   {
+//     prevMillis = millis();
+//     Serial.print("Pushing distance = ");
+//     Serial.print(distance);
+//     Serial.print(" cm to /test/distance... ");
+
+//     String name = Database.push<number_t>(client, "/test/distance", number_t(distance));
+//     if (client.lastError().code() == 0)
+//     {
+//       Firebase.printf("ok, name: %s\n", name.c_str());
+//     }
+//     else
+//     {
+//       printError(client.lastError().code(), client.lastError().message());
+//     }
+//   }
+// }
